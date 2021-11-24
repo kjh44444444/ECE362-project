@@ -139,33 +139,56 @@ int main(void)
 {
     int key = 0;
     int position = 0;
+    int current_position = 0;
 
     enable_ports();
     init_tim6();
     setup_spi1();
     spi_init_oled();
-    spi_display1("Pick instrument:");
-    keypad(position);
+    keypad1(current_position);
+    keypad2(position);
     for(;;) {
         char key = get_keypress();
         switch(key){
-            case '0':position = 0;keypad(position);break;
-            case '1':position = 1;keypad(position);break;
-            case '2':position = 2;keypad(position);break;
-            case '3':position = 3;keypad(position);break;
-            case '4':position = 4;keypad(position);break;
-            case '5':position = 5;keypad(position);break;
-            case '6':position = 6;keypad(position);break;
-            case '7':position = 7;keypad(position);break;
-            case '8':position = 8;keypad(position);break;
-            case '9':position = 9;keypad(position);break;
-            case 'A': if(position < 9) keypad(++position);break;
-            case 'B': if(position > 0) keypad(--position);break;
+            case '0':position = 0;keypad2(position);break;
+            case '1':position = 1;keypad2(position);break;
+            case '2':position = 2;keypad2(position);break;
+            case '3':position = 3;keypad2(position);break;
+            case '4':position = 4;keypad2(position);break;
+            case '5':position = 5;keypad2(position);break;
+            case '6':position = 6;keypad2(position);break;
+            case '7':position = 7;keypad2(position);break;
+            case '8':position = 8;keypad2(position);break;
+            case '9':position = 9;keypad2(position);break;
+            case 'A': if(position < 9) keypad2(++position);break;
+            case 'B': if(position > 0) keypad2(--position);break;
+            case '#': current_position = position;keypad1(current_position);break;
             default: spi_display2("                ");
         }
     }
 }
-void keypad(int position){
+void keypad1(int current_position){
+    for(int i = 0;i<10;i++){
+        if(i==current_position){
+            char key = '0' + current_position;
+            switch(key){
+                case '0':spi_display1("                ");spi_display1("0: Grand piano");current_position = 0;break;
+                case '1':spi_display1("                ");spi_display1("1. Piano");current_position = 1;break;
+                case '2':spi_display1("                ");spi_display1("2. Organ");current_position = 2;break;
+                case '3':spi_display1("                ");spi_display1("3. Guitar");current_position = 3;break;
+                case '4':spi_display1("                ");spi_display1("4. Brass");current_position = 4;break;
+                case '5':spi_display1("                ");spi_display1("5. Saxophone");current_position = 5;break;
+                case '6':spi_display1("                ");spi_display1("6. Flute");current_position = 6;break;
+                case '7':spi_display1("                ");spi_display1("7. Strings");current_position = 7;break;
+                case '8':spi_display1("                ");spi_display1("8. Flute");current_position = 8;break;
+                case '9':spi_display1("                ");spi_display1("9. Synth");current_position = 9;break;
+                default: spi_display1("                ");
+            }
+        }
+    }
+
+}
+void keypad2(int position){
     char key = '0' + position;
     switch(key){
         case '0':spi_display2("                ");spi_display2("0: Grand piano");position = 0;break;
