@@ -8,6 +8,8 @@ uint8_t col;
 char queue[2];
 int qin;
 int qout;
+int current_position = 0;
+int position = 0;
 
 void nano_wait(unsigned int n) {
     asm(    "        mov r0,%0\n"
@@ -17,24 +19,32 @@ void nano_wait(unsigned int n) {
 
 void enable_ports(void){
     RCC->AHBENR |= RCC_AHBENR_GPIOAEN;
-    GPIOA->MODER &= ~GPIO_MODER_MODER0 & ~GPIO_MODER_MODER1 & ~GPIO_MODER_MODER2;
-    GPIOA->PUPDR &= ~GPIO_PUPDR_PUPDR0 & ~GPIO_PUPDR_PUPDR1 & ~GPIO_PUPDR_PUPDR2;
-    GPIOA->PUPDR |= GPIO_PUPDR_PUPDR0_1 | GPIO_PUPDR_PUPDR1_1 | GPIO_PUPDR_PUPDR2_1;
+    GPIOA->MODER &= ~GPIO_MODER_MODER0 & ~GPIO_MODER_MODER2 & ~GPIO_MODER_MODER4;
+    GPIOA->PUPDR &= ~GPIO_PUPDR_PUPDR0 & ~GPIO_PUPDR_PUPDR2 & ~GPIO_PUPDR_PUPDR4;
+    GPIOA->PUPDR |= GPIO_PUPDR_PUPDR0_1 | GPIO_PUPDR_PUPDR2_1 | GPIO_PUPDR_PUPDR4_1;
 }
 void init_exti(void){//using exti
     RCC->APB2ENR |= RCC_APB2ENR_SYSCFGCOMPEN;
-    SYSCFG->EXTICR[1] = SYSCFG_EXTICR1_EXTI0_PA | SYSCFG_EXTICR1_EXTI1_PA | SYSCFG_EXTICR1_EXTI2_PA;
-    EXTI->RTSR |= EXTI_RTSR_TR0 | EXTI_RTSR_TR1 | EXTI_RTSR_TR2;
-    EXTI->IMR |= EXTI_IMR_MR0 | EXTI_IMR_MR1 | EXTI_IMR_MR2;
-    NVIC->ISER[0] |= 1<<EXTI0_1_IRQn;
-    NVIC->ISER[0] |= 1<<EXTI2_3_IRQn;
+    SYSCFG->EXTICR[1] |= SYSCFG_EXTICR1_EXTI0_PA | SYSCFG_EXTICR1_EXTI2_PA;
+    SYSCFG->EXTICR[2] |= SYSCFG_EXTICR2_EXTI4_PA;
+    EXTI->RTSR |= EXTI_RTSR_TR0 | EXTI_RTSR_TR2 | EXTI_RTSR_TR4;
+    EXTI->IMR |= EXTI_IMR_MR0 | EXTI_IMR_MR2 | EXTI_IMR_MR4;
+    NVIC->ISER[0] |= 1<<EXTI0_1_IRQn | 1<<EXTI2_3_IRQn | 1<<EXTI4_15_IRQn;
 }
 void EXTI0_1_IRQHandler(void){
-    EXTI->PR = 1<<EXTI_PR_PR0;
-    EXTI->PR = 1<<EXTI_PR_PR1;
+    keypad(current_position,1);
+    keypad(position,2);
+    EXTI->PR = 0x1;
 }
 void EXTI2_3_IRQHandler(void){
-    EXTI->PR = 1<<EXTI_PR_PR2;
+    keypad(current_position,1);
+    keypad(position,2);
+    EXTI->PR = 0x4;
+}
+void EXTI4_15_IRQHandler(void){
+    keypad(current_position,1);
+    keypad(position,2);
+    EXTI->PR = 0x10;
 }
 
 void drive_column(int c) {
@@ -83,18 +93,19 @@ void TIM6_DAC_IRQHandler(void) {
     drive_column(col);
 }
 
-int get_keypress(int position, int current_position) {
+int get_keypress(void) {
     for(;;) {
         asm volatile ("wfi" : :);
         if(((GPIOA->IDR & GPIO_ODR_0)==0) & (position != 9)){
-            return ++position;
-        } else if(((GPIOA->IDR & GPIO_ODR_1)==0) & (position != 0)){
-            return --position;
-        } else if((GPIOA->IDR & GPIO_ODR_2)==0){
+            position++;
+            return 1;
+        } else if(((GPIOA->IDR & GPIO_ODR_2)==0) & (position != 0)){
+            position--;
+            return 1;
+        } else if((GPIOA->IDR & GPIO_ODR_4)==0){
             current_position = position;
-            return current_position;
+            return 1;
         }
-        continue;
     }
 }
 
@@ -184,8 +195,6 @@ void keypad(int position,int keypad){
 }
 int main(void)
 {
-    int position = 0;
-    int current_position = 0;
     enable_ports();
     init_exti();
     init_tim6();
@@ -194,10 +203,8 @@ int main(void)
     keypad(current_position,1);
     keypad(position,2);
     for(;;){
-        int num = get_keypress(position,current_position);
-        keypad(current_position,1);
-        keypad(position,2);
+        int num = get_keypress();
+        nano_wait(500000000);
     }
-
 }
 
