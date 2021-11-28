@@ -1,0 +1,31 @@
+#include <stdio.h>
+int main()
+{
+    int array[8] = {};
+    int array_final[8] = {};
+    char a = 'a';
+    int val = (int)a;
+    //int val = 150;
+    for(int i = 0;i<7;i++){
+        if((val % 2 == 1) & (val > 0)){
+            array[i] = 1;
+        }
+        else{
+            array[i] = 0;
+        }
+        val /= 2;
+    }
+    for(int j = 0;j<8;j++){
+        printf("%d ",array[j]);
+    }
+    printf("\n");
+    int k = 7;
+    for(int j = 0;j<8;j++){
+        array_final[j] = array[k];
+        k--;
+    }
+    for(int j = 0;j<8;j++){
+        printf("%d ",array_final[j]);
+    }
+    return 0;
+}
