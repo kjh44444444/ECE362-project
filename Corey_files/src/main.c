@@ -69,6 +69,7 @@ int get_keypress(void) {
             return 1;
         } else if((GPIOA->IDR & GPIO_ODR_4)==0){
             current_position = position;
+            voiceNum = current_position;
             return 1;
         }
     }
@@ -391,9 +392,7 @@ int main(void)
      init_tim7();
      for(;;){
          int num = get_keypress();
-         nano_wait(500000000);
-     }
-     for(;;){
-//         set_freq(notes);
+         //nano_wait(500000000); //change this to debouncing button
+         set_freq(notes);
      }
 }
