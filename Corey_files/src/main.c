@@ -20,6 +20,138 @@
 #define NOTE_OFF 0x80 //note off status message for channel 0
 //int volume = 2048; //not currently used
 int TimeDelay = 0;
+int current_position = 0;
+int position = 0;
+
+//code for oled
+void nano_wait(unsigned int n) {
+    asm(    "        mov r0,%0\n"
+            "repeat: sub r0,#83\n"
+            "        bgt repeat\n" : : "r"(n) : "r0", "cc");
+}
+void enable_ports(void){
+    RCC->AHBENR |= RCC_AHBENR_GPIOAEN;
+    GPIOA->MODER &= ~GPIO_MODER_MODER0 & ~GPIO_MODER_MODER2 & ~GPIO_MODER_MODER4;
+    GPIOA->PUPDR &= ~GPIO_PUPDR_PUPDR0 & ~GPIO_PUPDR_PUPDR2 & ~GPIO_PUPDR_PUPDR4;
+    GPIOA->PUPDR |= GPIO_PUPDR_PUPDR0_1 | GPIO_PUPDR_PUPDR2_1 | GPIO_PUPDR_PUPDR4_1;
+}
+void init_exti(void){//using exti
+    RCC->APB2ENR |= RCC_APB2ENR_SYSCFGCOMPEN;
+    SYSCFG->EXTICR[1] |= SYSCFG_EXTICR1_EXTI0_PA | SYSCFG_EXTICR1_EXTI2_PA;
+    SYSCFG->EXTICR[2] |= SYSCFG_EXTICR2_EXTI4_PA;
+    EXTI->RTSR |= EXTI_RTSR_TR0 | EXTI_RTSR_TR2 | EXTI_RTSR_TR4;
+    EXTI->IMR |= EXTI_IMR_MR0 | EXTI_IMR_MR2 | EXTI_IMR_MR4;
+    NVIC->ISER[0] |= 1<<EXTI0_1_IRQn | 1<<EXTI2_3_IRQn | 1<<EXTI4_15_IRQn;
+}
+void EXTI0_1_IRQHandler(void){
+    keypad(current_position,1);
+    keypad(position,2);
+    EXTI->PR = 0x1;
+}
+void EXTI2_3_IRQHandler(void){
+    keypad(current_position,1);
+    keypad(position,2);
+    EXTI->PR = 0x4;
+}
+void EXTI4_15_IRQHandler(void){
+    keypad(current_position,1);
+    keypad(position,2);
+    EXTI->PR = 0x10;
+}
+int get_keypress(void) {
+    for(;;) {
+        asm volatile ("wfi" : :);
+        if(((GPIOA->IDR & GPIO_ODR_0)==0) & (position != 9)){
+            position++;
+            return 1;
+        } else if(((GPIOA->IDR & GPIO_ODR_2)==0) & (position != 0)){
+            position--;
+            return 1;
+        } else if((GPIOA->IDR & GPIO_ODR_4)==0){
+            current_position = position;
+            return 1;
+        }
+    }
+}
+void setup_spi1() {
+    RCC->AHBENR |= RCC_AHBENR_GPIOAEN;
+    GPIOA->MODER &= ~GPIO_MODER_MODER5 & ~GPIO_MODER_MODER6 & ~GPIO_MODER_MODER7 & ~GPIO_MODER_MODER15;
+    GPIOA->MODER |= GPIO_MODER_MODER5_1 | GPIO_MODER_MODER6_1 | GPIO_MODER_MODER7_1 | GPIO_MODER_MODER15_1;
+    RCC->APB2ENR |= RCC_APB2ENR_SPI1EN;
+    SPI1->CR1 &= ~SPI_CR1_SPE; //Ensure that the CR1_SPE bit is clear.
+    SPI1->CR1 |= SPI_CR1_BR_0 | SPI_CR1_BR_1 | SPI_CR1_BR_2; //Set the baud rate as low as possible (maximum divisor for BR).
+    SPI1->CR2 = SPI_CR2_DS_3 | SPI_CR2_DS_0;
+    SPI1->CR1 |= SPI_CR1_MSTR;
+    SPI1->CR2 |= SPI_CR2_SSOE;
+    SPI1->CR2 |= SPI_CR2_NSSP;
+    SPI1->CR1 |= SPI_CR1_SPE;
+}
+void spi_cmd(unsigned int data) {
+    while(!(SPI1->SR  & SPI_SR_TXE)); //Waits until the SPI1_SR_TXE bit is set.
+    SPI1->DR = data; //Copies the parameter to the SPI1_DR.
+}
+void spi_data(unsigned int data) {
+    while(!(SPI1->SR  & SPI_SR_TXE)); //Waits until the SPI1_SR_TXE bit is set.
+    data |= 0x200;
+    SPI1->DR = data;//Copies the parameter to the SPI1_DR.
+}
+void spi_init_oled() {
+    nano_wait(1000000);//Use nano_wait() to wait 1 ms for the display to power up and stabilize.
+    spi_cmd(0x38); // set for 8-bit operation
+    spi_cmd(0x08); // turn display off
+    spi_cmd(0x01); // clear display
+    nano_wait(2000000);//Use nano_wait() to wait 2 ms for the display to clear.
+    spi_cmd(0x06); // set the display to scroll
+    spi_cmd(0x02); // move the cursor to the home position
+    spi_cmd(0x0c); // turn the display on
+}
+void spi_display1(const char *string) {
+    spi_cmd(0x02);
+    for(int i =0 ;i<strlen(string);i++){
+        if(string[i] != NULL){
+            spi_data(string[i]);
+        }
+    }
+}
+void spi_display2(const char *string) {
+    spi_cmd(0xc0);
+    for(int i =0 ;i<strlen(string);i++){
+        if(string[i] != NULL){
+            spi_data(string[i]);
+        }
+    }
+}
+void keypad(int position,int keypad){
+    if(keypad == 1){
+        switch(position){
+            case 0:spi_display1("                ");spi_display1("0: Grand piano");break;
+            case 1:spi_display1("                ");spi_display1("1. Piano");break;
+            case 2:spi_display1("                ");spi_display1("2. Organ");break;
+            case 3:spi_display1("                ");spi_display1("3. Guitar");break;
+            case 4:spi_display1("                ");spi_display1("4. Brass");break;
+            case 5:spi_display1("                ");spi_display1("5. Saxophone");break;
+            case 6:spi_display1("                ");spi_display1("6. Flute");break;
+            case 7:spi_display1("                ");spi_display1("7. Strings");break;
+            case 8:spi_display1("                ");spi_display1("8. Flute");break;
+            case 9:spi_display1("                ");spi_display1("9. Synth");break;
+            default: spi_display1("                ");
+        }
+    }else if(keypad == 2){
+        switch(position){
+            case 0:spi_display2("                ");spi_display2("0: Grand piano");break;
+            case 1:spi_display2("                ");spi_display2("1. Piano");break;
+            case 2:spi_display2("                ");spi_display2("2. Organ");break;
+            case 3:spi_display2("                ");spi_display2("3. Guitar");break;
+            case 4:spi_display2("                ");spi_display2("4. Brass");break;
+            case 5:spi_display2("                ");spi_display2("5. Saxophone");break;
+            case 6:spi_display2("                ");spi_display2("6. Flute");break;
+            case 7:spi_display2("                ");spi_display2("7. Strings");break;
+            case 8:spi_display2("                ");spi_display2("8. Flute");break;
+            case 9:spi_display2("                ");spi_display2("9. Synth");break;
+            default: spi_display2("                ");
+        }
+    }
+}
 
 //**
 // The following code is used for delay between changing notes
@@ -244,12 +376,23 @@ void DMA1_CH1_IRQHandler(void) {
 
 int main(void)
 {
+     //setup oled
+     enable_ports();
+     init_exti();
+     setup_spi1();
+     spi_init_oled();
+     keypad(current_position,1);
+     keypad(position,2);
      setup_dac();
      init_usart5();
      setup_dma();
      //set sysTick to interrupt every 1ms
 //     init_SysTick(6000);
      init_tim7();
+     for(;;){
+         int num = get_keypress();
+         nano_wait(500000000);
+     }
      for(;;){
 //         set_freq(notes);
      }
