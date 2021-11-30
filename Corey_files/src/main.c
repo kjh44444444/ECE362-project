@@ -22,7 +22,17 @@
 int TimeDelay = 0;
 int current_position = 0;
 int position = 0;
+int step[MAXNOTES];
+int offset[MAXNOTES];
 
+int numNotes = 0; //keeps track of number of notes stored
+int voiceNum = 0; //this will choose the voicing used
+                  //CURRENTLY: 0=piano,1=clarinet,2=electric organ...
+int notesMIDI[MAXNOTES] = {}; //stores currently pressed notes (using MIDI number)
+int noteIndex[127] = {}; //this keeps track of the index of a given note in
+                         //notesMIDI (i.e. if Note ON-60 message received
+                         //noteIndex[60] will be set to the index of notesMIDI
+                         //where is stored)
 //code for oled
 void nano_wait(unsigned int n) {
     asm(    "        mov r0,%0\n"
@@ -212,17 +222,6 @@ void init_tim7(void) {
     TIM7->CR1 |= TIM_CR1_CEN;
     NVIC->ISER[0] |= 1 << TIM7_IRQn;
 }
-int step[MAXNOTES];
-int offset[MAXNOTES];
-
-int numNotes = 0; //keeps track of number of notes stored
-int voiceNum = 0; //this will choose the voicing used
-                  //CURRENTLY: 0=piano,1=clarinet,2=electric organ...
-int notesMIDI[MAXNOTES] = {}; //stores currently pressed notes (using MIDI number)
-int noteIndex[127] = {}; //this keeps track of the index of a given note in
-                         //notesMIDI (i.e. if Note ON-60 message received
-                         //noteIndex[60] will be set to the index of notesMIDI
-                         //where is stored)
 
 void set_freq(void) {
     float freq;
