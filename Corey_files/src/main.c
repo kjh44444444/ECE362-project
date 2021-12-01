@@ -54,35 +54,22 @@ void init_exti(void){//using exti
     NVIC->ISER[0] |= 1<<EXTI0_1_IRQn | 1<<EXTI2_3_IRQn | 1<<EXTI4_15_IRQn;
 }
 void EXTI0_1_IRQHandler(void){
+    position++;
     keypad(current_position,1);
     keypad(position,2);
     EXTI->PR = 0x1;
 }
 void EXTI2_3_IRQHandler(void){
+    position--;
     keypad(current_position,1);
     keypad(position,2);
     EXTI->PR = 0x4;
 }
 void EXTI4_15_IRQHandler(void){
+    current_position=position;
     keypad(current_position,1);
     keypad(position,2);
     EXTI->PR = 0x10;
-}
-int get_keypress(void) {
-    for(;;) {
-        asm volatile ("wfi" : :);
-        if(((GPIOA->IDR & GPIO_ODR_0)==0) & (position != 9)){
-            position++;
-            return 1;
-        } else if(((GPIOA->IDR & GPIO_ODR_2)==0) & (position != 0)){
-            position--;
-            return 1;
-        } else if((GPIOA->IDR & GPIO_ODR_4)==0){
-            current_position = position;
-            voiceNum = current_position;
-            return 1;
-        }
-    }
 }
 void setup_spi1() {
     RCC->AHBENR |= RCC_AHBENR_GPIOAEN;
@@ -390,8 +377,6 @@ int main(void)
 //     init_SysTick(6000);
      init_tim7();
      for(;;){
-         int num = get_keypress();
-         //nano_wait(500000000); //change this to debouncing button
          set_freq(notes);
      }
 }
