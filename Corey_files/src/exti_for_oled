@@ -32,48 +32,25 @@ void init_exti(void){//using exti
     NVIC->ISER[0] |= 1<<EXTI0_1_IRQn | 1<<EXTI2_3_IRQn | 1<<EXTI4_15_IRQn;
 }
 void EXTI0_1_IRQHandler(void){
+    position++;
     keypad(current_position,1);
     keypad(position,2);
+
     EXTI->PR = 0x1;
 }
 void EXTI2_3_IRQHandler(void){
+    position--;
     keypad(current_position,1);
     keypad(position,2);
+
     EXTI->PR = 0x4;
 }
 void EXTI4_15_IRQHandler(void){
+    current_position=position;
     keypad(current_position,1);
     keypad(position,2);
+
     EXTI->PR = 0x10;
-}
-
-void drive_column(int c) {
-    GPIOC->BSRR = 0xf00000 | (1 << (c + 4));
-}
-
-int read_rows() {
-    return GPIOC->IDR & 0xf;
-}
-
-void push_queue(int n) {
-    n = (n & 0xff) | 0x80;
-    queue[qin] = n;
-    qin ^= 1;
-}
-
-uint8_t pop_queue() {
-    uint8_t tmp = queue[qout] & 0x7f;
-    queue[qout] = 0;
-    qout ^= 1;
-    return tmp;
-}
-
-void update_history(int c, int rows) {
-    for(int i = 0; i < 4; i++) {
-        hist[4*c+i] = (hist[4*c+i]<<1) + ((rows>>i)&1);
-        if (hist[4*c+i] == 1)
-        push_queue(4*c+i);
-    }
 }
 
 void init_tim6() {
@@ -87,24 +64,20 @@ void init_tim6() {
 
 void TIM6_DAC_IRQHandler(void) {
     TIM6->SR &= ~TIM_SR_UIF;
-    int rows = read_rows();
-    update_history(col, rows);
-    col = (col + 1) & 3;
-    drive_column(col);
 }
 
-int get_keypress(void) {
+void get_keypress(void) {
     for(;;) {
         asm volatile ("wfi" : :);
         if(((GPIOA->IDR & GPIO_ODR_0)==0) & (position != 9)){
             position++;
-            return 1;
+            break;
         } else if(((GPIOA->IDR & GPIO_ODR_2)==0) & (position != 0)){
             position--;
-            return 1;
+            break;
         } else if((GPIOA->IDR & GPIO_ODR_4)==0){
             current_position = position;
-            return 1;
+            break;
         }
     }
 }
@@ -202,9 +175,8 @@ int main(void)
     spi_init_oled();
     keypad(current_position,1);
     keypad(position,2);
-    for(;;){
-        int num = get_keypress();
-        nano_wait(500000000);
-    }
+    //for(;;){
+      //  get_keypress();
+        //nano_wait(200000000);//0.2s
+    //}
 }
-
