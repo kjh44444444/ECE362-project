@@ -13,7 +13,8 @@
 #include "constants.h"
 #include "wavetable.h"
 #include "MidiArray.h"
-
+#include "stdio.h"
+#include "stdlib.h"
 
 #define MAXNOTES 8 //arbitrarily chosen maximum number of notes
 #define NOTE_ON 0x90  //note on status message for channel 0
