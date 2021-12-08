@@ -2,12 +2,6 @@
 #include "stdio.h"
 #include "stdlib.h"
 
-const char keymap[] = "DCBA#9630852*741";
-uint8_t hist[16];
-uint8_t col;
-char queue[2];
-int qin;
-int qout;
 int current_position = 0;
 int position = 0;
 
@@ -64,22 +58,6 @@ void init_tim6() {
 
 void TIM6_DAC_IRQHandler(void) {
     TIM6->SR &= ~TIM_SR_UIF;
-}
-
-void get_keypress(void) {
-    for(;;) {
-        asm volatile ("wfi" : :);
-        if(((GPIOA->IDR & GPIO_ODR_0)==0) & (position != 9)){
-            position++;
-            break;
-        } else if(((GPIOA->IDR & GPIO_ODR_2)==0) & (position != 0)){
-            position--;
-            break;
-        } else if((GPIOA->IDR & GPIO_ODR_4)==0){
-            current_position = position;
-            break;
-        }
-    }
 }
 
 void setup_spi1() {
